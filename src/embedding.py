@@ -4,10 +4,16 @@ load_dotenv()
 import numpy as np
 from openai import OpenAI
 
-client = OpenAI()  # automatically reads OPENAI_API_KEY from the environment
+_client = None
+
+def get_client():
+    global _client
+    if _client is None:
+        _client = OpenAI()
+    return _client
 
 def get_embedding(text):
-    response = client.embeddings.create(
+    response = get_client().embeddings.create(
         model="text-embedding-3-small",
         input=text
     )
