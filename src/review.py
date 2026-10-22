@@ -30,14 +30,9 @@ def update_review_schedule(conn, question_id, is_correct):
     else:
         interval_days, correct_streak = row
     
-    if is_correct:
-        correct_streak += 1
-        interval_days = interval_days * 2  # 每次答对,间隔翻倍
-    else:
-        correct_streak = 0
-        interval_days = 1  # 答错,明天就要再考
-
-    next_date = date.today() + timedelta(days=interval_days)
+    next_date, interval_days, correct_streak = compute_next_schedule(
+        interval_days, correct_streak, is_correct, date.today()
+    )
 
     if row is None:
         cursor.execute(
@@ -50,6 +45,17 @@ def update_review_schedule(conn, question_id, is_correct):
             (next_date.isoformat(), interval_days, correct_streak, question_id)
         )
     conn.commit()
+
+def compute_next_schedule(interval_days, correct_streak, is_correct, today):
+    if is_correct:
+        correct_streak += 1
+        interval_days = interval_days * 2
+    else:
+        correct_streak = 0
+        interval_days = 1
+
+    next_date = today + timedelta(days=interval_days)
+    return next_date, interval_days, correct_streak
 
 if __name__ == "__main__":
     conn = get_connection()
