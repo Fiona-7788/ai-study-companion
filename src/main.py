@@ -9,11 +9,13 @@ from .llm import generate_question, judge_answer
 from .review import update_review_schedule
 from .db import get_connection
 from .review import get_due_reviews
+from .db import init_db
 
 import heapq
 
 note_index = {}
 app = FastAPI()
+init_db()
 
 class NoteUpload(BaseModel):
     content: str

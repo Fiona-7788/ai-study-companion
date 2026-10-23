@@ -8,6 +8,14 @@ def get_connection():
     conn = sqlite3.connect(DB_PATH)
     return conn
 
+def init_db():
+    schema_path = os.path.join(BASE_DIR, "schema.sql")
+    with open(schema_path) as f:
+        schema = f.read()
+    conn = get_connection()
+    conn.executescript(schema)
+    conn.close()
+
 def create_note(content, source):
     conn = get_connection()
     cursor = conn.cursor()
