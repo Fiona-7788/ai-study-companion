@@ -3,3 +3,10 @@ __pycache__/
 .env
 venv/
 .DS_Store
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+rootkey*
+study.db
