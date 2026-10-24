@@ -143,6 +143,16 @@ textarea, input {
 .dash-big { font-size: 3.6rem; font-weight: 800; line-height: 1.1; margin-top: 0.6rem; }
 .dash-sub { color: #5A5C8A; font-size: 0.9rem; }
 .dash-ring { display: flex; align-items: center; gap: 1.2rem; margin-top: 0.6rem; }
+.dash-card.cat-card { min-height: 0; }
+.cat-highlights { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.7rem 0 1rem; }
+.cat-pill { background: #F3F1FC; border-radius: 999px; padding: 0.25rem 0.8rem; font-size: 0.85rem; }
+.cat-pill.warn { background: #FDE8F0; }
+.cat-row { margin-bottom: 0.8rem; }
+.cat-head { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.95rem; }
+.cat-name { font-weight: 700; }
+.cat-meta { color: #5A5C8A; font-size: 0.85rem; white-space: nowrap; }
+.cat-track { background: #F3F1FC; border-radius: 999px; height: 10px; margin-top: 0.3rem; }
+.cat-bar { background: linear-gradient(90deg, #969BE7, #E58DB8); border-radius: 999px; height: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -232,6 +242,41 @@ def activity_chart(last_7_days):
     points = base.mark_point(filled=True, color="#6F74D0", size=60)
     return (area + line + points).properties(height=220, background="#FFFFFF").configure_view(strokeWidth=0)
 
+def category_card(categories):
+    # categories come sorted by question count, so the first one is the most practiced
+    most_practiced = categories[0]
+    rated = [c for c in categories if c["error_rate"] is not None]
+    most_mistakes = max(rated, key=lambda c: c["error_rate"]) if rated else None
+
+    pills = (f'<span class="cat-pill">Most practiced: '
+             f'<b>{html.escape(most_practiced["source"])}</b></span>')
+    if most_mistakes:
+        pills += (f'<span class="cat-pill warn">Most mistakes: '
+                  f'<b>{html.escape(most_mistakes["source"])}</b> '
+                  f'({most_mistakes["error_rate"]:.0%} wrong)</span>')
+
+    top = most_practiced["questions"]
+    rows = ""
+    for c in categories:
+        if c["error_rate"] is None:
+            wrong = "not enough answers yet"
+        else:
+            wrong = f'{c["error_rate"]:.0%} wrong'
+        plural = "question" if c["questions"] == 1 else "questions"
+        rows += f"""
+<div class="cat-row">
+  <div class="cat-head"><span class="cat-name">{html.escape(c["source"])}</span>
+    <span class="cat-meta">{c["questions"]} {plural} · {wrong}</span></div>
+  <div class="cat-track"><div class="cat-bar" style="width: {c["questions"] / top:.0%}"></div></div>
+</div>"""
+
+    return f"""
+<div class="dash-card cat-card">
+  <div class="dash-label">By category</div>
+  <div class="cat-highlights">{pills}</div>
+  {rows}
+</div>"""
+
 if page == "Dashboard":
     st.header("Dashboard")
     try:
@@ -265,6 +310,14 @@ if page == "Dashboard":
             st.markdown('<div class="dash-label">Answers in the last 7 days</div>',
                         unsafe_allow_html=True)
             st.altair_chart(activity_chart(stats["last_7_days"]), width="stretch")
+
+        try:
+            response = requests.get(f"{API_URL}/stats/categories")
+            categories = response.json()["categories"] if response.status_code == 200 else []
+        except requests.ConnectionError:
+            categories = []
+        if categories:
+            st.markdown(category_card(categories), unsafe_allow_html=True)
 
 elif page == "Upload":
     st.header("Upload Notes")

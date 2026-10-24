@@ -9,7 +9,7 @@ from .llm import generate_question, judge_answer
 from .review import update_review_schedule
 from .db import get_connection, init_db, get_question_text
 from .review import get_due_reviews
-from .stats import get_answer_stats
+from .stats import get_answer_stats, get_category_stats
 
 import heapq
 from datetime import date
@@ -143,6 +143,13 @@ def get_stats():
     stats = get_answer_stats(conn, date.today())
     conn.close()
     return {"due_today": len(get_due_reviews()), **stats}
+
+@app.get("/stats/categories")
+def get_categories():
+    conn = get_connection()
+    categories = get_category_stats(conn)
+    conn.close()
+    return {"categories": categories}
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

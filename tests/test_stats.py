@@ -2,7 +2,7 @@ import os
 import sqlite3
 from datetime import date
 
-from src.stats import get_answer_stats
+from src.stats import get_answer_stats, get_category_stats
 
 SCHEMA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "schema.sql")
 TODAY = date(2026, 10, 23)
@@ -59,3 +59,64 @@ def test_answers_older_than_7_days_excluded_from_chart_but_counted_in_total():
     stats = get_answer_stats(conn, TODAY)
     assert stats["total_answers"] == 1
     assert sum(d["count"] for d in stats["last_7_days"]) == 0
+
+
+def add_question(conn, source, answers=()):
+    # One note + one question; answers is a sequence of is_weak flags
+    note_id = conn.execute(
+        "INSERT INTO notes (content, source) VALUES (?, ?)", ("note", source)
+    ).lastrowid
+    qid = conn.execute(
+        "INSERT INTO questions (note_id, question_text) VALUES (?, ?)", (note_id, "q")
+    ).lastrowid
+    for weak in answers:
+        conn.execute(
+            "INSERT INTO answers (question_id, user_answer, is_weak) VALUES (?, ?, ?)",
+            (qid, "x", weak),
+        )
+
+
+def test_categories_empty_db():
+    assert get_category_stats(make_conn()) == []
+
+
+def test_categories_group_by_source_and_count():
+    conn = make_conn()
+    add_question(conn, "CSE 12", answers=(False, True))
+    add_question(conn, "CSE 12", answers=(True,))
+    add_question(conn, "MATH 20", answers=())
+    by_source = {c["source"]: c for c in get_category_stats(conn)}
+    assert by_source["CSE 12"]["questions"] == 2
+    assert by_source["CSE 12"]["answers"] == 3
+    assert by_source["CSE 12"]["wrong"] == 2
+    assert by_source["MATH 20"]["questions"] == 1
+    assert by_source["MATH 20"]["answers"] == 0
+    assert by_source["MATH 20"]["wrong"] == 0
+
+
+def test_categories_blank_sources_merge_into_no_source():
+    conn = make_conn()
+    add_question(conn, None)
+    add_question(conn, "")
+    add_question(conn, "   ")
+    cats = get_category_stats(conn)
+    assert len(cats) == 1
+    assert cats[0]["source"] == "(no source)"
+    assert cats[0]["questions"] == 3
+
+
+def test_categories_error_rate_needs_min_answers():
+    conn = make_conn()
+    add_question(conn, "few", answers=(True, True))              # 2 answers: too few
+    add_question(conn, "enough", answers=(True, False, False, False))
+    by_source = {c["source"]: c for c in get_category_stats(conn)}
+    assert by_source["few"]["error_rate"] is None
+    assert by_source["enough"]["error_rate"] == 0.25
+
+
+def test_categories_sorted_by_question_count():
+    conn = make_conn()
+    add_question(conn, "small")
+    add_question(conn, "big")
+    add_question(conn, "big")
+    assert [c["source"] for c in get_category_stats(conn)] == ["big", "small"]
