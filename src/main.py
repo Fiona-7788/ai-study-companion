@@ -7,16 +7,35 @@ from .chunking import chunk_text
 from .embedding import get_embedding, find_most_relevant_chunk
 from .llm import generate_question, judge_answer
 from .review import update_review_schedule
-from .db import get_connection, init_db, get_question_text
+from .db import (
+    get_connection, init_db, get_question_text,
+    insert_note, load_note_index, backfill_embeddings,
+)
 from .review import get_due_reviews
 from .stats import get_answer_stats, get_category_stats
 
 import heapq
+import logging
 from datetime import date
 
-note_index = {}
 app = FastAPI()
 init_db()
+
+def build_note_index():
+    conn = get_connection()
+    try:
+        filled = backfill_embeddings(conn, get_embedding)
+        if filled:
+            logging.info("Backfilled embeddings for %d note(s)", filled)
+    except Exception:
+        # Don't block startup if OpenAI is unreachable; those notes just stay out of the index
+        logging.exception("Embedding backfill failed")
+    index = load_note_index(conn)
+    conn.close()
+    return index
+
+# Rebuilt from the database on every startup, so restarts don't lose it
+note_index = build_note_index()
 
 class NoteUpload(BaseModel):
     content: str
@@ -27,18 +46,12 @@ def upload_note(note: NoteUpload):
     chunks = chunk_text(note.content)
     
     conn = get_connection()
-    cursor = conn.cursor()
     inserted_ids = []
     
     for chunk in chunks:
         embedding = get_embedding(chunk)
         note_index[chunk] = embedding  # 存进全局索引
-        
-        cursor.execute(
-            "INSERT INTO notes (content, source) VALUES (?, ?)",
-            (chunk, note.source)
-        )
-        inserted_ids.append(cursor.lastrowid)
+        inserted_ids.append(insert_note(conn, chunk, note.source, embedding))
     
     conn.commit()
     conn.close()
@@ -49,7 +62,7 @@ def upload_note(note: NoteUpload):
 def list_notes():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM notes ORDER BY created_at DESC")
+    cursor.execute("SELECT id, content, source, created_at FROM notes ORDER BY created_at DESC")
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -58,7 +71,7 @@ def list_notes():
 def get_note(note_id: int):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM notes WHERE id = ?", (note_id,))
+    cursor.execute("SELECT id, content, source, created_at FROM notes WHERE id = ?", (note_id,))
     row = cursor.fetchone()
     conn.close()
     return row
