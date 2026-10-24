@@ -29,3 +29,9 @@ def test_find_most_relevant_chunk_returns_closest(monkeypatch):
 def test_find_most_relevant_chunk_empty_index_returns_none():
     index = {}
     assert find_most_relevant_chunk("anything", index) is None
+def test_zero_vector_similarity_is_zero():
+    zero = np.array([0.0, 0.0])
+    v = np.array([1.0, 2.0])
+    assert cosine_similarity(zero, v) == 0.0
+    assert cosine_similarity(v, zero) == 0.0
+    assert cosine_similarity(zero, zero) == 0.0
