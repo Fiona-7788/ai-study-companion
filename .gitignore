@@ -10,3 +10,4 @@ venv/
 !.elasticbeanstalk/*.global.yml
 rootkey*
 study.db
+study.db.bak
