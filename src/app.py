@@ -139,52 +139,65 @@ def fetch_reviews():
         st.error("Failed to load reviews")
 
 with tab3:
-    st.header("Today's Reviews")
+    st.header("Review")
 
-    if st.button("Refresh Review List"):
-        st.session_state["rv_feedback"] = []
-        fetch_reviews()
+    # --- load the queue ---
+    if st.button("Start / Refresh Review"):
+        response = requests.get(f"{API_URL}/review")
+        if response.status_code == 200:
+            items = [r for r in response.json()["reviews"] if r.get("question_text")]
+            st.session_state["rv_queue"] = items
+            st.session_state["rv_idx"] = 0
+            st.session_state["rv_result"] = None
+        else:
+            st.error("Failed to load reviews")
 
-    # Feedback for questions answered in this session (newest first)
-    for fb in st.session_state.get("rv_feedback", []):
-        css = "fb-ok" if fb["is_correct"] else "fb-review"
-        verdict = "🎉 Correct! Nice work." if fb["is_correct"] else "📚 This concept needs more review."
-        st.markdown(
-            f'<div class="{css}">{verdict}<br><small>{html.escape(fb["question_text"])}</small></div>',
-            unsafe_allow_html=True
-        )
+    # --- run the session ---
+    if "rv_queue" in st.session_state:
+        queue = st.session_state["rv_queue"]
+        idx = st.session_state["rv_idx"]
+        result = st.session_state["rv_result"]
 
-    if "reviews" in st.session_state:
-        data = st.session_state["reviews"]
-        st.metric("Due for review", data["count"])
-        for item in data["reviews"]:
-            qid = item["question_id"]
-            st.markdown(
-                f'<div class="rv-item">📌 Question #{qid}'
-                f'<span>Due {item["due_date"]}</span></div>',
-                unsafe_allow_html=True
-            )
-            if item["question_text"] is None:
-                st.caption("Question not found.")
-                continue
-
+        if not queue:
+            st.markdown('<div class="fb-ok">🎉 Nothing to review right now.</div>',
+                        unsafe_allow_html=True)
+        elif idx >= len(queue):
+            st.markdown(f'<div class="fb-ok">🎉 All done! You reviewed {len(queue)} question(s).</div>',
+                        unsafe_allow_html=True)
+        else:
+            item = queue[idx]
+            st.progress(idx / len(queue))
+            st.caption(f"Question {idx + 1} of {len(queue)}")
             st.markdown(f'<div class="q-card">🧠 {html.escape(item["question_text"])}</div>',
                         unsafe_allow_html=True)
-            # Unique keys so each question keeps its own widget state across reruns
-            answer = st.text_area("Your answer", key=f"rv_answer_{qid}")
-            if st.button("Submit", key=f"rv_submit_{qid}"):
-                response = requests.post(
-                    f"{API_URL}/answer",
-                    json={"question_id": qid, "user_answer": answer}
-                )
-                result = response.json() if response.status_code == 200 else {"error": response.text}
-                if "error" in result:
-                    st.error(f"Submit failed: {result['error']}")
+
+            if result is None:
+                answer = st.text_area("Your answer", key=f"rv_answer_{idx}")
+                if st.button("Submit", key=f"rv_submit_{idx}"):
+                    if not answer.strip():
+                        st.warning("Write an answer first.")
+                    else:
+                        resp = requests.post(
+                            f"{API_URL}/answer",
+                            json={"question_id": item["question_id"], "user_answer": answer},
+                        )
+                        if resp.status_code == 200:
+                            st.session_state["rv_result"] = resp.json()["is_correct"]
+                            st.rerun()
+                        else:
+                            st.error("Failed to submit answer")
+            else:
+                if result:
+                    st.toast("Correct!", icon="🎉")
+                    st.markdown('<div class="fb-ok">🎉 Correct! Nice work.</div>',
+                                unsafe_allow_html=True)
                 else:
-                    st.session_state.setdefault("rv_feedback", []).insert(0, {
-                        "question_text": item["question_text"],
-                        "is_correct": result["is_correct"],
-                    })
-                    # Answered questions get a future due date, so they drop off the list
-                    fetch_reviews()
+                    st.toast("Needs more review", icon="📚")
+                    st.markdown('<div class="fb-review">📚 Not quite. You will see this one again.</div>',
+                                unsafe_allow_html=True)
+
+                last = idx == len(queue) - 1
+                if st.button("Finish" if last else "Next →", key=f"rv_next_{idx}"):
+                    st.session_state["rv_idx"] = idx + 1
+                    st.session_state["rv_result"] = None
                     st.rerun()
