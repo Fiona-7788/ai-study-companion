@@ -2,12 +2,23 @@ import streamlit as st
 import requests
 import html
 import math
+import os
 import random
 
 import altair as alt
 import pandas as pd
 
-API_URL = "http://127.0.0.1:8000"
+from streamlit.errors import StreamlitSecretNotFoundError
+
+def get_api_url():
+    # Streamlit Cloud: set API_URL in the app's secrets.
+    # Locally: optional API_URL env var, otherwise the local uvicorn server.
+    try:
+        return st.secrets["API_URL"].rstrip("/")
+    except (KeyError, StreamlitSecretNotFoundError):
+        return os.environ.get("API_URL", "http://127.0.0.1:8000").rstrip("/")
+
+API_URL = get_api_url()
 
 st.set_page_config(page_title="AI Study Companion", page_icon=":material/auto_stories:", layout="centered")
 

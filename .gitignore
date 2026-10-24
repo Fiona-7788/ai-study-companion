@@ -11,3 +11,4 @@ venv/
 rootkey*
 study.db
 study.db.bak
+.streamlit/secrets.toml
