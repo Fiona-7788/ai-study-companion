@@ -131,13 +131,6 @@ with tab2:
                 st.markdown('<div class="fb-review">📚 This concept needs more review.</div>',
                             unsafe_allow_html=True)
 
-def fetch_reviews():
-    response = requests.get(f"{API_URL}/review")
-    if response.status_code == 200:
-        st.session_state["reviews"] = response.json()
-    else:
-        st.error("Failed to load reviews")
-
 with tab3:
     st.header("Review")
 
