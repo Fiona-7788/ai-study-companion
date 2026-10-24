@@ -1,6 +1,10 @@
 import streamlit as st
 import requests
 import html
+import math
+
+import altair as alt
+import pandas as pd
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -123,6 +127,22 @@ textarea, input {
     background: rgba(150, 155, 231, 0.15);
     transform: none;
 }
+/* Dashboard cards */
+.dash-card, .st-key-chart_card {
+    background: #FFFFFF;
+    border-radius: 20px;
+    box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08);
+}
+.dash-card {
+    padding: 1.2rem 1.4rem;
+    min-height: 210px;
+    color: #2A2B5E;
+}
+.st-key-chart_card { padding: 1.2rem 1.4rem 0.6rem; margin-top: 0.8rem; }
+.dash-label { color: #5A5C8A; font-weight: 700; font-size: 0.95rem; }
+.dash-big { font-size: 3.6rem; font-weight: 800; line-height: 1.1; margin-top: 0.6rem; }
+.dash-sub { color: #5A5C8A; font-size: 0.9rem; }
+.dash-ring { display: flex; align-items: center; gap: 1.2rem; margin-top: 0.6rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -173,9 +193,78 @@ with st.sidebar:
             args=(name,),
         )
 
+def accuracy_ring(accuracy):
+    # SVG donut: a gradient arc whose length is accuracy * circumference
+    r = 42
+    circumference = 2 * math.pi * r
+    filled = (accuracy or 0) * circumference
+    label = "—" if accuracy is None else f"{accuracy:.0%}"
+    return f"""
+<svg width="120" height="120" viewBox="0 0 120 120">
+  <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#969BE7"/><stop offset="1" stop-color="#E58DB8"/>
+  </linearGradient></defs>
+  <circle cx="60" cy="60" r="{r}" fill="none" stroke="#E9E8F8" stroke-width="12"/>
+  <circle cx="60" cy="60" r="{r}" fill="none" stroke="url(#ring-grad)" stroke-width="12"
+          stroke-linecap="round" stroke-dasharray="{filled} {circumference}"
+          transform="rotate(-90 60 60)"/>
+  <text x="60" y="67" text-anchor="middle" font-size="22" font-weight="800" fill="#2A2B5E">{label}</text>
+</svg>"""
+
+def activity_chart(last_7_days):
+    df = pd.DataFrame(last_7_days)
+    df["date"] = pd.to_datetime(df["date"])
+    base = alt.Chart(df).encode(
+        x=alt.X("date:T", title=None, axis=alt.Axis(format="%b %d", tickCount=7, grid=False)),
+        y=alt.Y("count:Q", title=None, axis=alt.Axis(tickMinStep=1, gridColor="#E9E8F8")),
+        tooltip=[alt.Tooltip("date:T", format="%b %d"), alt.Tooltip("count:Q", title="answers")],
+    )
+    area = base.mark_area(
+        interpolate="monotone",
+        color=alt.Gradient(
+            gradient="linear", x1=1, x2=1, y1=1, y2=0,
+            stops=[alt.GradientStop(color="#FFFFFF", offset=0),
+                   alt.GradientStop(color="#E58DB8", offset=1)],
+        ),
+        opacity=0.35,
+    )
+    line = base.mark_line(interpolate="monotone", color="#969BE7", strokeWidth=3)
+    points = base.mark_point(filled=True, color="#6F74D0", size=60)
+    return (area + line + points).properties(height=220, background="#FFFFFF").configure_view(strokeWidth=0)
+
 if page == "Dashboard":
     st.header("Dashboard")
-    st.caption("Coming soon: due reviews, accuracy, and 7-day activity.")
+    try:
+        response = requests.get(f"{API_URL}/stats")
+        stats = response.json() if response.status_code == 200 else None
+    except requests.ConnectionError:
+        stats = None
+
+    if stats is None:
+        st.error("Couldn't load stats. Is the backend running?")
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+<div class="dash-card">
+  <div class="dash-label">Due for review today</div>
+  <div class="dash-big">{stats["due_today"]}</div>
+  <div class="dash-sub">{stats["total_answers"]} answers recorded so far</div>
+</div>""", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+<div class="dash-card">
+  <div class="dash-label">Accuracy</div>
+  <div class="dash-ring">{accuracy_ring(stats["accuracy"])}
+    <div class="dash-sub">Share of answers<br>judged correct</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+        # key gives the container a stable .st-key-chart_card class for styling
+        with st.container(key="chart_card"):
+            st.markdown('<div class="dash-label">Answers in the last 7 days</div>',
+                        unsafe_allow_html=True)
+            st.altair_chart(activity_chart(stats["last_7_days"]), width="stretch")
 
 elif page == "Upload":
     st.header("Upload Notes")
