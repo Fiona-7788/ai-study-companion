@@ -83,7 +83,7 @@ textarea, input {
     gap: 0.7rem;
 }
 /* Frosted glass, shared by all cards */
-.q-card, .fb-ok, .fb-review, .ref-card, .dash-card, .st-key-chart_card {
+.q-card, .fb-ok, .fb-review, .ref-card, .dash-card, .st-key-chart_card, [class*="st-key-form_"] {
     background: rgba(255, 255, 255, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(16px) saturate(150%);
@@ -154,6 +154,8 @@ textarea, input {
     color: #2A2B5E;
 }
 .st-key-chart_card { padding: 1.2rem 1.4rem 0.6rem; margin-top: 0.8rem; }
+/* Input panels (Upload, Quiz, Review) */
+[class*="st-key-form_"] { border-radius: 20px; padding: 1.2rem 1.4rem; }
 .dash-label { color: #5A5C8A; font-weight: 700; font-size: 0.95rem; }
 .dash-big { font-size: 3.6rem; font-weight: 800; line-height: 1.1; margin-top: 0.6rem; }
 .dash-sub { color: #5A5C8A; font-size: 0.9rem; }
@@ -391,10 +393,12 @@ if page == "Dashboard":
 
 elif page == "Upload":
     st.header("Upload Notes")
-    content = st.text_area("Note content")
-    source = st.text_input("Source (optional)")
+    with st.container(key="form_upload"):
+        content = st.text_area("Note content")
+        source = st.text_input("Source (optional)")
+        submitted = st.button("Upload")
 
-    if st.button("Upload"):
+    if submitted:
         response = requests.post(
             f"{API_URL}/upload",
             json={"content": content, "source": source}
@@ -408,9 +412,11 @@ elif page == "Upload":
 
 elif page == "Quiz":
     st.header("Generate and Answer a Question")
-    topic = st.text_input("Topic you want to be tested on")
+    with st.container(key="form_quiz_topic"):
+        topic = st.text_input("Topic you want to be tested on")
+        generate = st.button("Generate Question")
 
-    if st.button("Generate Question"):
+    if generate:
         response = requests.post(f"{API_URL}/quiz", json={"topic": topic})
         if response.status_code == 200:
             st.session_state["current_question"] = response.json()
@@ -424,8 +430,10 @@ elif page == "Quiz":
         st.markdown(card("q-card", "question", html.escape(str(text))),
                     unsafe_allow_html=True)
 
-        answer = st.text_area("Your answer")
-        if st.button("Submit Answer"):
+        with st.container(key="form_quiz_answer"):
+            answer = st.text_area("Your answer")
+            submitted = st.button("Submit Answer")
+        if submitted:
             qid = data["question_id"]
             response = requests.post(
                 f"{API_URL}/answer",
@@ -471,8 +479,10 @@ elif page == "Review":
                         unsafe_allow_html=True)
 
             if result is None:
-                answer = st.text_area("Your answer", key=f"rv_answer_{idx}")
-                if st.button("Submit", key=f"rv_submit_{idx}"):
+                with st.container(key="form_review_answer"):
+                    answer = st.text_area("Your answer", key=f"rv_answer_{idx}")
+                    submitted = st.button("Submit", key=f"rv_submit_{idx}")
+                if submitted:
                     if not answer.strip():
                         st.warning("Write an answer first.")
                     else:
