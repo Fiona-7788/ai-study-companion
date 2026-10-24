@@ -8,6 +8,15 @@ st.set_page_config(page_title="AI Study Companion", page_icon="🧠", layout="ce
 
 st.markdown("""
 <style>
+/* Page background: soft lavender-pink gradient, light enough to keep #2A2B5E text readable */
+[data-testid="stApp"] {
+    background: linear-gradient(135deg, #FCF8FB 0%, #EEEBFA 50%, #FBEAF3 100%);
+    background-attachment: fixed;
+}
+/* Let the gradient show through the top header bar */
+[data-testid="stHeader"] {
+    background: transparent;
+}
 .app-title {
     font-size: 3rem !important;
     font-weight: 800 !important;
@@ -49,12 +58,15 @@ textarea, input {
     color: #2A2B5E;
     font-size: 1.05rem;
 }
-.q-card { background: #E9E8F8; border-left: 6px solid #969BE7; }
+.q-card, [data-testid="stMetric"] {
+    box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08);
+}
+.q-card { background: #FFFFFF; border-left: 6px solid #969BE7; }
 .fb-ok { background: #E3F6EA; border-left: 6px solid #4CAF82; }
 .fb-review { background: #FDE8F0; border-left: 6px solid #E58DB8; }
 
 [data-testid="stMetric"] {
-    background: #E9E8F8;
+    background: #FFFFFF;
     border-radius: 20px;
     padding: 1rem 1.4rem;
     border-left: 6px solid #E58DB8;
