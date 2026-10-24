@@ -9,8 +9,10 @@ from .llm import generate_question, judge_answer
 from .review import update_review_schedule
 from .db import get_connection, init_db, get_question_text
 from .review import get_due_reviews
+from .stats import get_answer_stats
 
 import heapq
+from datetime import date
 
 note_index = {}
 app = FastAPI()
@@ -134,6 +136,13 @@ def get_reviews():
             "due_date": review_date,
         })
     return {"count": len(result), "reviews": result}
+
+@app.get("/stats")
+def get_stats():
+    conn = get_connection()
+    stats = get_answer_stats(conn, date.today())
+    conn.close()
+    return {"due_today": len(get_due_reviews()), **stats}
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
