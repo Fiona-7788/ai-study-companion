@@ -57,7 +57,7 @@ git clone https://github.com/Fiona-7788/ai-study-companion.git
 cd ai-study-companion
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # app dependencies + pytest
 ```
 
 Create a `.env` file in the project root:
