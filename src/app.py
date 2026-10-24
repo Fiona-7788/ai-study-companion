@@ -82,15 +82,102 @@ textarea, input {
     color: #2A2B5E;
 }
 .rv-item span { color: #6F74D0; font-weight: 600; }
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #F3F1FC 0%, #FBEFF6 100%);
+    border-right: 1px solid #E9E8F8;
+}
+.side-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 1.2rem;
+}
+.side-brand span {
+    background: linear-gradient(90deg, #6F74D0, #E58DB8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+/* Sidebar nav: full-width, left-aligned items */
+[data-testid="stSidebar"] .stButton > button {
+    border-radius: 14px;
+    padding: 0.55rem 1rem;
+}
+[data-testid="stSidebar"] .stButton > button p {
+    font-size: 1rem;
+}
+/* Left-align the label; if Streamlit changes this markup it just falls back to centered */
+[data-testid="stSidebar"] .stButton > button > div {
+    justify-content: flex-start;
+    width: 100%;
+}
+/* Inactive pages: transparent, light highlight on hover */
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
+    background: transparent;
+    box-shadow: none;
+    font-weight: 500;
+}
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
+    background: rgba(150, 155, 231, 0.15);
+    transform: none;
+}
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<p class="app-title">AI Study Companion</p>', unsafe_allow_html=True)
 st.markdown('<p class="app-subtitle">Turn your notes into active recall practice.</p>', unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["Upload Notes", "Quiz", "Review"])
+PAGE_ICONS = {
+    "Dashboard": ":material/dashboard:",
+    "Upload": ":material/edit_note:",
+    "Quiz": ":material/quiz:",
+    "Review": ":material/replay:",
+}
 
-with tab1:
+# Logo: open book with a spark, on a rounded gradient tile
+LOGO_SVG = """
+<svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+  <defs><linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#969BE7"/><stop offset="1" stop-color="#E58DB8"/>
+  </linearGradient></defs>
+  <rect width="36" height="36" rx="10" fill="url(#logo-grad)"/>
+  <path d="M8 13 C12 11.5 15.5 12 18 14 C20.5 12 24 11.5 28 13 V27 C24 25.5 20.5 26 18 28 C15.5 26 12 25.5 8 27Z"
+        fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M18 14 V28" stroke="#fff" stroke-width="2"/>
+  <path d="M25 4.5 L25.8 7.2 L28.5 8 L25.8 8.8 L25 11.5 L24.2 8.8 L21.5 8 L24.2 7.2Z" fill="#fff"/>
+</svg>
+"""
+
+def go_to(name):
+    st.session_state["page"] = name
+
+# Current page lives in session_state so it survives reruns
+st.session_state.setdefault("page", "Dashboard")
+page = st.session_state["page"]
+
+with st.sidebar:
+    st.markdown(f'<div class="side-brand">{LOGO_SVG}<span>Study Companion</span></div>',
+                unsafe_allow_html=True)
+    nav = st.container(gap="xxsmall")
+    for name, icon in PAGE_ICONS.items():
+        # The active page is a primary (gradient) button; the rest are plain
+        nav.button(
+            name,
+            icon=icon,
+            key=f"nav_{name}",
+            type="primary" if name == page else "secondary",
+            width="stretch",
+            on_click=go_to,
+            args=(name,),
+        )
+
+if page == "Dashboard":
+    st.header("Dashboard")
+    st.caption("Coming soon: due reviews, accuracy, and 7-day activity.")
+
+elif page == "Upload":
     st.header("Upload Notes")
     content = st.text_area("Note content")
     source = st.text_input("Source (optional)")
@@ -107,7 +194,7 @@ with tab1:
         else:
             st.error(f"Upload failed: {response.text}")
 
-with tab2:
+elif page == "Quiz":
     st.header("Generate and Answer a Question")
     topic = st.text_input("Topic you want to be tested on")
 
@@ -143,7 +230,7 @@ with tab2:
                 st.markdown('<div class="fb-review">📚 This concept needs more review.</div>',
                             unsafe_allow_html=True)
 
-with tab3:
+elif page == "Review":
     st.header("Review")
 
     # --- load the queue ---
