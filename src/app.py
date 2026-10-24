@@ -8,7 +8,7 @@ import pandas as pd
 
 API_URL = "http://127.0.0.1:8000"
 
-st.set_page_config(page_title="AI Study Companion", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="AI Study Companion", page_icon=":material/auto_stories:", layout="centered")
 
 st.markdown("""
 <style>
@@ -61,6 +61,9 @@ textarea, input {
     margin: 0.8rem 0 1.2rem 0;
     color: #2A2B5E;
     font-size: 1.05rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
 }
 .q-card {
     box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08);
@@ -68,6 +71,10 @@ textarea, input {
 .q-card { background: #FFFFFF; border-left: 6px solid #969BE7; }
 .fb-ok { background: #E3F6EA; border-left: 6px solid #4CAF82; }
 .fb-review { background: #FDE8F0; border-left: 6px solid #E58DB8; }
+.card-icon { width: 1.4em; height: 1.4em; flex-shrink: 0; margin-top: 0.05em; }
+.q-card .card-icon { color: #6F74D0; }
+.fb-ok .card-icon { color: #2E8B62; }
+.fb-review .card-icon { color: #C2588B; }
 
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #F3F1FC 0%, #FBEFF6 100%);
@@ -162,6 +169,21 @@ LOGO_SVG = """
   <path d="M25 4.5 L25.8 7.2 L28.5 8 L25.8 8.8 L25 11.5 L24.2 8.8 L21.5 8 L24.2 7.2Z" fill="#fff"/>
 </svg>
 """
+
+# Line icons (24x24, stroked with currentColor so CSS sets the color)
+ICON_PATHS = {
+    "question": '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>',
+    "check": '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16.2 9.5"/>',
+    "review": '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/>',
+    "sparkle": '<path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 17v4M17 19h4"/>',
+}
+
+def card(css_class, icon, text_html):
+    # text_html must already be escaped by the caller
+    svg = (f'<svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+           f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+           f'{ICON_PATHS[icon]}</svg>')
+    return f'<div class="{css_class}">{svg}<span>{text_html}</span></div>'
 
 def go_to(name):
     st.session_state["page"] = name
@@ -314,7 +336,7 @@ elif page == "Upload":
         )
         if response.status_code == 200:
             msg = response.json()["message"]
-            st.markdown(f'<div class="fb-ok">✅ {html.escape(msg)}</div>',
+            st.markdown(card("fb-ok", "check", html.escape(msg)),
                         unsafe_allow_html=True)
         else:
             st.error(f"Upload failed: {response.text}")
@@ -334,7 +356,7 @@ elif page == "Quiz":
     if "current_question" in st.session_state:
         data = st.session_state["current_question"]
         text = data.get("question", data.get("error"))
-        st.markdown(f'<div class="q-card">🧠 {html.escape(str(text))}</div>',
+        st.markdown(card("q-card", "question", html.escape(str(text))),
                     unsafe_allow_html=True)
 
         answer = st.text_area("Your answer")
@@ -349,10 +371,10 @@ elif page == "Quiz":
 
         if "last_result" in st.session_state:
             if st.session_state["last_result"]["is_correct"]:
-                st.markdown('<div class="fb-ok">🎉 Correct! Nice work.</div>',
+                st.markdown(card("fb-ok", "check", "Correct! Nice work."),
                             unsafe_allow_html=True)
             else:
-                st.markdown('<div class="fb-review">📚 This concept needs more review.</div>',
+                st.markdown(card("fb-review", "review", "This concept needs more review."),
                             unsafe_allow_html=True)
 
 elif page == "Review":
@@ -376,16 +398,16 @@ elif page == "Review":
         result = st.session_state["rv_result"]
 
         if not queue:
-            st.markdown('<div class="fb-ok">🎉 Nothing to review right now.</div>',
+            st.markdown(card("fb-ok", "sparkle", "Nothing to review right now."),
                         unsafe_allow_html=True)
         elif idx >= len(queue):
-            st.markdown(f'<div class="fb-ok">🎉 All done! You reviewed {len(queue)} question(s).</div>',
+            st.markdown(card("fb-ok", "sparkle", f"All done! You reviewed {len(queue)} question(s)."),
                         unsafe_allow_html=True)
         else:
             item = queue[idx]
             st.progress(idx / len(queue))
             st.caption(f"Question {idx + 1} of {len(queue)}")
-            st.markdown(f'<div class="q-card">🧠 {html.escape(item["question_text"])}</div>',
+            st.markdown(card("q-card", "question", html.escape(item["question_text"])),
                         unsafe_allow_html=True)
 
             if result is None:
@@ -405,12 +427,12 @@ elif page == "Review":
                             st.error("Failed to submit answer")
             else:
                 if result:
-                    st.toast("Correct!", icon="🎉")
-                    st.markdown('<div class="fb-ok">🎉 Correct! Nice work.</div>',
+                    st.toast("Correct!", icon=":material/check_circle:")
+                    st.markdown(card("fb-ok", "check", "Correct! Nice work."),
                                 unsafe_allow_html=True)
                 else:
-                    st.toast("Needs more review", icon="📚")
-                    st.markdown('<div class="fb-review">📚 Not quite. You will see this one again.</div>',
+                    st.toast("Needs more review", icon=":material/replay:")
+                    st.markdown(card("fb-review", "review", "Not quite. You will see this one again."),
                                 unsafe_allow_html=True)
 
                 last = idx == len(queue) - 1
