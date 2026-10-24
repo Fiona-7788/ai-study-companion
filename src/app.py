@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import html
 import math
+import random
 
 import altair as alt
 import pandas as pd
@@ -55,7 +56,7 @@ st.markdown("""
 textarea, input {
     border-radius: 14px !important;
 }
-.q-card, .fb-ok, .fb-review {
+.q-card, .fb-ok, .fb-review, .ref-card {
     border-radius: 20px;
     padding: 1.1rem 1.4rem;
     margin: 0.8rem 0 1.2rem 0;
@@ -75,6 +76,11 @@ textarea, input {
 .q-card .card-icon { color: #6F74D0; }
 .fb-ok .card-icon { color: #2E8B62; }
 .fb-review .card-icon { color: #C2588B; }
+.fb-detail { margin-top: 0.35rem; font-size: 0.97rem; }
+.ref-card { background: #FFFFFF; border-left: 6px solid #E9E8F8; box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08); }
+.ref-card .card-icon { color: #969BE7; }
+.ref-label { display: block; font-size: 0.8rem; font-weight: 700; color: #6F74D0;
+             text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
 
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #F3F1FC 0%, #FBEFF6 100%);
@@ -175,6 +181,8 @@ ICON_PATHS = {
     "question": '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>',
     "check": '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16.2 9.5"/>',
     "review": '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/>',
+    "pencil": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+    "book": '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>',
     "sparkle": '<path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 17v4M17 19h4"/>',
 }
 
@@ -184,6 +192,44 @@ def card(css_class, icon, text_html):
            f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
            f'{ICON_PATHS[icon]}</svg>')
     return f'<div class="{css_class}">{svg}<span>{text_html}</span></div>'
+
+CORRECT_MESSAGES = [
+    "Correct! Nice work.",
+    "Spot on!",
+    "Exactly right. Well done!",
+    "Great answer!",
+    "You nailed it!",
+    "That's it! Keep it up.",
+]
+
+WRONG_MESSAGES = [
+    "Good try! See the explanation below.",
+    "Not quite yet. Check the explanation below.",
+    "Close! Take a look at what was missing.",
+    "Almost there. The explanation below will help.",
+    "Nice effort! Here's what to add next time.",
+    "Getting there. Compare with the reference answer below.",
+]
+
+def with_message(result):
+    # Pick the verdict message once, when the result arrives, so reruns don't reshuffle it
+    pool = CORRECT_MESSAGES if result.get("is_correct") else WRONG_MESSAGES
+    return {**result, "verdict_message": random.choice(pool)}
+
+def render_feedback(result):
+    # Verdict card with the model's feedback, then the reference answer (if any)
+    if result.get("is_correct"):
+        css, icon, verdict = "fb-ok", "check", result.get("verdict_message", CORRECT_MESSAGES[0])
+    else:
+        css, icon, verdict = "fb-review", "review", result.get("verdict_message", WRONG_MESSAGES[0])
+    body = f"<b>{verdict}</b>"
+    if result.get("feedback"):
+        body += f'<div class="fb-detail">{html.escape(result["feedback"])}</div>'
+    st.markdown(card(css, icon, body), unsafe_allow_html=True)
+
+    if result.get("reference_answer"):
+        ref = f'<span class="ref-label">Reference answer</span>{html.escape(result["reference_answer"])}'
+        st.markdown(card("ref-card", "book", ref), unsafe_allow_html=True)
 
 def go_to(name):
     st.session_state["page"] = name
@@ -367,15 +413,10 @@ elif page == "Quiz":
                 json={"question_id": qid, "user_answer": answer}
             )
             if response.status_code == 200:
-                st.session_state["last_result"] = response.json()
+                st.session_state["last_result"] = with_message(response.json())
 
         if "last_result" in st.session_state:
-            if st.session_state["last_result"]["is_correct"]:
-                st.markdown(card("fb-ok", "check", "Correct! Nice work."),
-                            unsafe_allow_html=True)
-            else:
-                st.markdown(card("fb-review", "review", "This concept needs more review."),
-                            unsafe_allow_html=True)
+            render_feedback(st.session_state["last_result"])
 
 elif page == "Review":
     st.header("Review")
@@ -421,19 +462,22 @@ elif page == "Review":
                             json={"question_id": item["question_id"], "user_answer": answer},
                         )
                         if resp.status_code == 200:
-                            st.session_state["rv_result"] = resp.json()["is_correct"]
+                            # Keep the student's answer so it stays visible after the input box is gone
+                            st.session_state["rv_result"] = {**with_message(resp.json()), "user_answer": answer}
                             st.rerun()
                         else:
                             st.error("Failed to submit answer")
             else:
-                if result:
+                if result.get("is_correct"):
                     st.toast("Correct!", icon=":material/check_circle:")
-                    st.markdown(card("fb-ok", "check", "Correct! Nice work."),
-                                unsafe_allow_html=True)
                 else:
                     st.toast("Needs more review", icon=":material/replay:")
-                    st.markdown(card("fb-review", "review", "Not quite. You will see this one again."),
-                                unsafe_allow_html=True)
+                # Escape first, then keep the student's line breaks
+                answer_html = html.escape(result.get("user_answer", "")).replace("\n", "<br>")
+                st.markdown(card("ref-card", "pencil",
+                                 f'<span class="ref-label">Your answer</span>{answer_html}'),
+                            unsafe_allow_html=True)
+                render_feedback(result)
 
                 last = idx == len(queue) - 1
                 if st.button("Finish" if last else "Next →", key=f"rv_next_{idx}"):

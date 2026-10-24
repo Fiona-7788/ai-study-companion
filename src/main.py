@@ -117,14 +117,19 @@ def submit_answer(submit: AnswerSubmit):
     conn = get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT question_text FROM questions WHERE id = ?", (submit.question_id,))
+    cursor.execute(
+        "SELECT q.question_text, n.content FROM questions q "
+        "LEFT JOIN notes n ON n.id = q.note_id WHERE q.id = ?",
+        (submit.question_id,)
+    )
     row = cursor.fetchone()
     if row is None:
         conn.close()
         return {"error": "Question not found"}
-    question_text = row[0]
+    question_text, note_content = row
     
-    is_correct = judge_answer(question_text, submit.user_answer)
+    judgement = judge_answer(question_text, submit.user_answer, note_content)
+    is_correct = judgement["is_correct"]
     
     cursor.execute(
         "INSERT INTO answers (question_id, user_answer, is_weak) VALUES (?, ?, ?)",
@@ -135,7 +140,12 @@ def submit_answer(submit: AnswerSubmit):
     update_review_schedule(conn, submit.question_id, is_correct)
     conn.close()
     
-    return {"is_correct": is_correct, "message": "Answer recorded, review schedule updated"}
+    return {
+        "is_correct": is_correct,
+        "feedback": judgement["feedback"],
+        "reference_answer": judgement["reference_answer"],
+        "message": "Answer recorded, review schedule updated",
+    }
 
 @app.get("/review")
 def get_reviews():
