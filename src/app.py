@@ -62,30 +62,13 @@ textarea, input {
     color: #2A2B5E;
     font-size: 1.05rem;
 }
-.q-card, [data-testid="stMetric"] {
+.q-card {
     box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08);
 }
 .q-card { background: #FFFFFF; border-left: 6px solid #969BE7; }
 .fb-ok { background: #E3F6EA; border-left: 6px solid #4CAF82; }
 .fb-review { background: #FDE8F0; border-left: 6px solid #E58DB8; }
 
-[data-testid="stMetric"] {
-    background: #FFFFFF;
-    border-radius: 20px;
-    padding: 1rem 1.4rem;
-    border-left: 6px solid #E58DB8;
-}
-.rv-item {
-    display: flex;
-    justify-content: space-between;
-    background: #FFFFFF;
-    border: 1px solid #E9E8F8;
-    border-radius: 16px;
-    padding: 0.8rem 1.2rem;
-    margin-bottom: 0.6rem;
-    color: #2A2B5E;
-}
-.rv-item span { color: #6F74D0; font-weight: 600; }
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #F3F1FC 0%, #FBEFF6 100%);
     border-right: 1px solid #E9E8F8;
