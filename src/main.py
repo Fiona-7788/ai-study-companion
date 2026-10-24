@@ -7,9 +7,8 @@ from .chunking import chunk_text
 from .embedding import get_embedding, find_most_relevant_chunk
 from .llm import generate_question, judge_answer
 from .review import update_review_schedule
-from .db import get_connection
+from .db import get_connection, init_db, get_question_text
 from .review import get_due_reviews
-from .db import init_db
 
 import heapq
 
@@ -129,7 +128,11 @@ def get_reviews():
     result = []
     while due:
         review_date, qid = heapq.heappop(due)
-        result.append({"question_id": qid, "due_date": review_date})
+        result.append({
+            "question_id": qid,
+            "question_text": get_question_text(qid),
+            "due_date": review_date,
+        })
     return {"count": len(result), "reviews": result}
 
 @app.exception_handler(Exception)

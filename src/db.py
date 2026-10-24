@@ -46,6 +46,14 @@ def get_answers_paginated(page=1, page_size=10):
     conn.close()
     return rows
 
+def get_question_text(question_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT question_text FROM questions WHERE id = ?", (question_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
+
 if __name__ == "__main__":
     create_note("测试笔记来自Python", "CSE 12")
     for row in get_all_notes():

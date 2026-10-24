@@ -131,22 +131,60 @@ with tab2:
                 st.markdown('<div class="fb-review">📚 This concept needs more review.</div>',
                             unsafe_allow_html=True)
 
+def fetch_reviews():
+    response = requests.get(f"{API_URL}/review")
+    if response.status_code == 200:
+        st.session_state["reviews"] = response.json()
+    else:
+        st.error("Failed to load reviews")
+
 with tab3:
     st.header("Today's Reviews")
 
     if st.button("Refresh Review List"):
-        response = requests.get(f"{API_URL}/review")
-        if response.status_code == 200:
-            st.session_state["reviews"] = response.json()
-        else:
-            st.error("Failed to load reviews")
+        st.session_state["rv_feedback"] = []
+        fetch_reviews()
+
+    # Feedback for questions answered in this session (newest first)
+    for fb in st.session_state.get("rv_feedback", []):
+        css = "fb-ok" if fb["is_correct"] else "fb-review"
+        verdict = "🎉 Correct! Nice work." if fb["is_correct"] else "📚 This concept needs more review."
+        st.markdown(
+            f'<div class="{css}">{verdict}<br><small>{html.escape(fb["question_text"])}</small></div>',
+            unsafe_allow_html=True
+        )
 
     if "reviews" in st.session_state:
         data = st.session_state["reviews"]
         st.metric("Due for review", data["count"])
         for item in data["reviews"]:
+            qid = item["question_id"]
             st.markdown(
-                f'<div class="rv-item">📌 Question #{item["question_id"]}'
+                f'<div class="rv-item">📌 Question #{qid}'
                 f'<span>Due {item["due_date"]}</span></div>',
                 unsafe_allow_html=True
             )
+            if item["question_text"] is None:
+                st.caption("Question not found.")
+                continue
+
+            st.markdown(f'<div class="q-card">🧠 {html.escape(item["question_text"])}</div>',
+                        unsafe_allow_html=True)
+            # Unique keys so each question keeps its own widget state across reruns
+            answer = st.text_area("Your answer", key=f"rv_answer_{qid}")
+            if st.button("Submit", key=f"rv_submit_{qid}"):
+                response = requests.post(
+                    f"{API_URL}/answer",
+                    json={"question_id": qid, "user_answer": answer}
+                )
+                result = response.json() if response.status_code == 200 else {"error": response.text}
+                if "error" in result:
+                    st.error(f"Submit failed: {result['error']}")
+                else:
+                    st.session_state.setdefault("rv_feedback", []).insert(0, {
+                        "question_text": item["question_text"],
+                        "is_correct": result["is_correct"],
+                    })
+                    # Answered questions get a future due date, so they drop off the list
+                    fetch_reviews()
+                    st.rerun()
