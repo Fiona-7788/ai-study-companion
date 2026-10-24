@@ -13,9 +13,14 @@ st.set_page_config(page_title="AI Study Companion", page_icon=":material/auto_st
 
 st.markdown("""
 <style>
-/* Page background: soft lavender-pink gradient, light enough to keep #2A2B5E text readable */
+/* Page background: soft color blobs over a lavender-pink gradient.
+   The blobs give the frosted-glass cards something to blur. */
 [data-testid="stApp"] {
-    background: linear-gradient(135deg, #FCF8FB 0%, #EEEBFA 50%, #FBEAF3 100%);
+    background:
+        radial-gradient(circle at 12% 18%, rgba(150, 155, 231, 0.35), transparent 38%),
+        radial-gradient(circle at 88% 22%, rgba(229, 141, 184, 0.30), transparent 40%),
+        radial-gradient(circle at 55% 90%, rgba(150, 155, 231, 0.25), transparent 45%),
+        linear-gradient(135deg, #FCF8FB 0%, #EEEBFA 50%, #FBEAF3 100%);
     background-attachment: fixed;
 }
 /* Let the gradient show through the top header bar */
@@ -66,18 +71,23 @@ textarea, input {
     align-items: flex-start;
     gap: 0.7rem;
 }
-.q-card {
-    box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08);
+/* Frosted glass, shared by all cards */
+.q-card, .fb-ok, .fb-review, .ref-card, .dash-card, .st-key-chart_card {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: 0 8px 24px rgba(42, 43, 94, 0.08);
 }
-.q-card { background: #FFFFFF; border-left: 6px solid #969BE7; }
-.fb-ok { background: #E3F6EA; border-left: 6px solid #4CAF82; }
-.fb-review { background: #FDE8F0; border-left: 6px solid #E58DB8; }
+.q-card { border-left: 6px solid #969BE7; }
+.fb-ok { background: rgba(227, 246, 234, 0.72); border-left: 6px solid #4CAF82; }
+.fb-review { background: rgba(253, 232, 240, 0.72); border-left: 6px solid #E58DB8; }
 .card-icon { width: 1.4em; height: 1.4em; flex-shrink: 0; margin-top: 0.05em; }
 .q-card .card-icon { color: #6F74D0; }
 .fb-ok .card-icon { color: #2E8B62; }
 .fb-review .card-icon { color: #C2588B; }
 .fb-detail { margin-top: 0.35rem; font-size: 0.97rem; }
-.ref-card { background: #FFFFFF; border-left: 6px solid #E9E8F8; box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08); }
+.ref-card { border-left: 6px solid #C9CBF2; }
 .ref-card .card-icon { color: #969BE7; }
 .ref-label { display: block; font-size: 0.8rem; font-weight: 700; color: #6F74D0;
              text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
@@ -125,9 +135,7 @@ textarea, input {
 }
 /* Dashboard cards */
 .dash-card, .st-key-chart_card {
-    background: #FFFFFF;
     border-radius: 20px;
-    box-shadow: 0 4px 14px rgba(42, 43, 94, 0.08);
 }
 .dash-card {
     padding: 1.2rem 1.4rem;
@@ -141,13 +149,13 @@ textarea, input {
 .dash-ring { display: flex; align-items: center; gap: 1.2rem; margin-top: 0.6rem; }
 .dash-card.cat-card { min-height: 0; }
 .cat-highlights { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.7rem 0 1rem; }
-.cat-pill { background: #F3F1FC; border-radius: 999px; padding: 0.25rem 0.8rem; font-size: 0.85rem; }
-.cat-pill.warn { background: #FDE8F0; }
+.cat-pill { background: rgba(233, 232, 248, 0.8); border-radius: 999px; padding: 0.25rem 0.8rem; font-size: 0.85rem; }
+.cat-pill.warn { background: rgba(253, 232, 240, 0.9); }
 .cat-row { margin-bottom: 0.8rem; }
 .cat-head { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.95rem; }
 .cat-name { font-weight: 700; }
 .cat-meta { color: #5A5C8A; font-size: 0.85rem; white-space: nowrap; }
-.cat-track { background: #F3F1FC; border-radius: 999px; height: 10px; margin-top: 0.3rem; }
+.cat-track { background: rgba(233, 232, 248, 0.8); border-radius: 999px; height: 10px; margin-top: 0.3rem; }
 .cat-bar { background: linear-gradient(90deg, #969BE7, #E58DB8); border-radius: 999px; height: 100%; }
 </style>
 """, unsafe_allow_html=True)
@@ -291,7 +299,7 @@ def activity_chart(last_7_days):
     )
     line = base.mark_line(interpolate="monotone", color="#969BE7", strokeWidth=3)
     points = base.mark_point(filled=True, color="#6F74D0", size=60)
-    return (area + line + points).properties(height=220, background="#FFFFFF").configure_view(strokeWidth=0)
+    return (area + line + points).properties(height=220, background="transparent").configure_view(strokeWidth=0)
 
 def category_card(categories):
     # categories come sorted by question count, so the first one is the most practiced
