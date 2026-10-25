@@ -281,24 +281,29 @@ def accuracy_ring(accuracy):
     circumference = 2 * math.pi * r
     filled = (accuracy or 0) * circumference
     label = "—" if accuracy is None else f"{accuracy:.0%}"
+    # A zero-length arc with round caps still draws a dot, so skip it entirely
+    arc = "" if filled == 0 else f"""
+  <circle cx="60" cy="60" r="{r}" fill="none" stroke="url(#ring-grad)" stroke-width="12"
+          stroke-linecap="round" stroke-dasharray="{filled} {circumference}"
+          transform="rotate(-90 60 60)"/>"""
     return f"""
 <svg width="120" height="120" viewBox="0 0 120 120">
   <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
     <stop offset="0" stop-color="#969BE7"/><stop offset="1" stop-color="#E58DB8"/>
   </linearGradient></defs>
-  <circle cx="60" cy="60" r="{r}" fill="none" stroke="#E9E8F8" stroke-width="12"/>
-  <circle cx="60" cy="60" r="{r}" fill="none" stroke="url(#ring-grad)" stroke-width="12"
-          stroke-linecap="round" stroke-dasharray="{filled} {circumference}"
-          transform="rotate(-90 60 60)"/>
+  <circle cx="60" cy="60" r="{r}" fill="none" stroke="#E9E8F8" stroke-width="12"/>{arc}
   <text x="60" y="67" text-anchor="middle" font-size="22" font-weight="800" fill="#2A2B5E">{label}</text>
 </svg>"""
 
 def activity_chart(last_7_days):
     df = pd.DataFrame(last_7_days)
     df["date"] = pd.to_datetime(df["date"])
+    # Fixed integer axis from 0; with all-zero data Vega's auto scale would print "0.000000"
+    y_max = max(int(df["count"].max()), 1)
     base = alt.Chart(df).encode(
         x=alt.X("date:T", title=None, axis=alt.Axis(format="%b %d", tickCount=7, grid=False)),
-        y=alt.Y("count:Q", title=None, axis=alt.Axis(tickMinStep=1, gridColor="#E9E8F8")),
+        y=alt.Y("count:Q", title=None, scale=alt.Scale(domain=[0, y_max], nice=True),
+                axis=alt.Axis(format="d", tickMinStep=1, gridColor="#E9E8F8")),
         tooltip=[alt.Tooltip("date:T", format="%b %d"), alt.Tooltip("count:Q", title="answers")],
     )
     area = base.mark_area(
