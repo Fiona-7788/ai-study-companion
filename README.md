@@ -2,7 +2,7 @@
 
 An AI study tool that turns your notes into active recall practice. Paste in your notes, and the app retrieves the most relevant passages, generates Socratic follow-up questions with an LLM, judges your answers, and schedules reviews with a spaced repetition algorithm (SM-2) so weak topics come back sooner.
 
-**Live demo:** https://ai-study-companion-pbsggc2aquhnksdw7mzmmz.streamlit.app (the backend is on Render's free tier, so the first load can take about a minute)
+**Live demo:** https://ai-study-companion-pbsggc2aquhnksdw7mzmmz.streamlit.app (both services are on free tiers: if the app shows a "gone to sleep" page, click the wake-up button, and the first load can take a few minutes while the backend starts)
 
 ![Dashboard](docs/screenshots/dashboard.jpg)
 
@@ -90,7 +90,7 @@ Tests cover the SM-2 scheduler (including database updates against an in-memory 
 - **Frontend**: Streamlit Community Cloud, https://ai-study-companion-pbsggc2aquhnksdw7mzmmz.streamlit.app. The backend URL is read from the app's secrets (`API_URL`); locally it falls back to an `API_URL` environment variable, then `http://127.0.0.1:8000`.
 - **Backend**: Render, https://ai-study-companion-604v.onrender.com/docs
 
-> Hosted on Render's free tier, so the first request after a period of inactivity can take about a minute while the service wakes up. The database is recreated empty on each fresh deploy.
+> Both services run on free tiers. Streamlit Community Cloud puts the app to sleep after a period without visitors, showing a page with a wake-up button; Render spins the backend down when idle, so the first request after that can take about a minute. The backend database is recreated empty on each fresh deploy.
 
 ## Engineering Notes
 
