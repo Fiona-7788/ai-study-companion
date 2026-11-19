@@ -1,6 +1,6 @@
 # AI Study Companion
 
-An AI study tool that turns your notes into active recall practice. Paste in your notes, and the app retrieves the most relevant passages, generates Socratic follow-up questions with an LLM, judges your answers, and schedules reviews with a spaced repetition algorithm (SM-2) so weak topics come back sooner.
+An AI study tool that turns your notes into active recall practice. Paste in your notes, and the app retrieves the most relevant passages, generates conceptual questions with an LLM, judges your answers, and schedules reviews with an SM-2–inspired spaced repetition algorithm so weak topics come back sooner.
 
 **Live demo:** https://ai-study-companion-pbsggc2aquhnksdw7mzmmz.streamlit.app (both services are on free tiers: if the app shows a "gone to sleep" page, click the wake-up button, and the first load can take a few minutes while the backend starts)
 
@@ -12,7 +12,7 @@ An AI study tool that turns your notes into active recall practice. Paste in you
 
 - **Note ingestion**: paste text notes, which are split into paragraph-based chunks
 - **Semantic retrieval**: chunks are embedded with OpenAI `text-embedding-3-small` and matched to a topic by cosine similarity. Embeddings are stored in SQLite, so the index survives restarts
-- **Socratic questions**: an LLM generates a follow-up question from the retrieved chunk
+- **Conceptual questions**: an LLM generates a question from the retrieved chunk that asks for explanation or application, not a plain definition
 - **Answer feedback**: the LLM judges your answer against the source note and returns specific feedback plus a reference answer
 - **Spaced repetition**: a simplified SM-2 scheduler doubles the review interval on correct answers and resets it to 1 day on wrong ones
 - **Review queue**: a min-heap surfaces the questions that are due, earliest first; the UI walks through them one at a time
@@ -20,7 +20,7 @@ An AI study tool that turns your notes into active recall practice. Paste in you
 
 ## Tech Stack
 
-Python, FastAPI, Streamlit, SQLite, OpenAI API, pytest. Deployed on Render.
+Python, FastAPI, Streamlit, SQLite, OpenAI API, pytest. Backend deployed on Render, frontend on Streamlit Community Cloud.
 
 ## Architecture
 
@@ -45,7 +45,7 @@ SQLite (notes + embeddings), loaded into an in-memory index on startup
 **Data flow**
 
 1. **Upload**: a note is split into chunks, each chunk is embedded with the OpenAI embeddings API, and the chunk and its embedding are saved to SQLite. On startup the backend backfills any missing embeddings and loads them into an in-memory index.
-2. **Quiz**: given a topic, the app finds the most similar chunk (cosine similarity), and an LLM turns it into a Socratic follow-up question stored in SQLite.
+2. **Quiz**: given a topic, the app finds the most similar chunk (cosine similarity), and an LLM turns it into a conceptual question stored in SQLite.
 3. **Answer**: an LLM judges the answer against the question's source note and returns feedback and a reference answer; the result is saved and the SM-2 scheduler updates the question's next review date.
 4. **Review**: questions whose review date is today or earlier are returned, earliest first.
 5. **Stats**: the dashboard reads aggregate accuracy, daily activity, and per-category results from `/stats` and `/stats/categories`.
@@ -108,11 +108,14 @@ Tests cover the SM-2 scheduler (including database updates against an in-memory 
 - Uploading the same text twice creates duplicate notes.
 - Categories come from the free-text note source, so different spellings of the same course are counted separately.
 - Single user: there are no accounts, and everyone shares one database.
+- The public backend has no authentication or rate limiting, and every quiz and grading request calls the OpenAI API.
+- Grading accuracy has not been formally evaluated against human-labeled answers.
 - The deployed backend runs in UTC, so "today", due dates, and the 7-day chart roll over at midnight UTC rather than local time.
 
 ## Future Work
 
 - PDF and slide upload
 - Question types that match the exam format (multiple choice, true/false), graded without the LLM
-- Deploy the Streamlit frontend and move to a hosted Postgres database so data survives redeploys
+- Move to a hosted Postgres database so data survives redeploys
+- Measure grading accuracy against a hand-labeled set of answers, and add basic access protection and rate limiting
 - Full SM-2 with an ease factor and graded (0-5) answers
